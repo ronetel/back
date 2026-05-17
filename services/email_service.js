@@ -2,13 +2,18 @@ const nodemailer = require('nodemailer')
 require('dotenv').config()
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE !== 'false', // true для 465, false для 587
-  family: 4, // принудительно IPv4
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: 465,       // SSL — не блокируется cloud-провайдерами в отличие от 587
+  secure: true,    // прямой TLS
+  requireTLS: true,
+  family: 4,       // принудительно IPv4
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.2',
   },
 })
 

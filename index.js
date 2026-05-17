@@ -78,6 +78,7 @@ app.get('/', (req, res) => res.json({
 }))
 
 
+
 const authRouter = require('./routes/auth')
 const clothesRouter = require('./routes/clothes')
 const outfitsRouter = require('./routes/outfits')
@@ -133,6 +134,7 @@ app.listen(port, async () => {
   console.log(`OpenWeather API: ${process.env.OPENWEATHER_API_KEY ? 'configured' : 'NOT SET'}`)
   console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT SET'}`)
   console.log(`Groq API: ${process.env.GROQ_API_KEY ? 'configured' : 'NOT SET (rule-based fallback will be used)'}`)
+  console.log(`SMTP: ${process.env.SMTP_USER ? `configured (${process.env.SMTP_USER})` : 'NOT SET — emails will not be sent!'}`)
   await runMigrations()
 })
 
