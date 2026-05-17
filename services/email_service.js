@@ -1,12 +1,15 @@
 const nodemailer = require('nodemailer')
+const dns = require('dns')
 require('dotenv').config()
+
+// Принудительно IPv4 — без этого Node.js выбирает IPv6 для smtp.gmail.com
+// что блокируется на Render и других cloud-провайдерах
+dns.setDefaultResultOrder('ipv4first')
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: 465,       // SSL — не блокируется cloud-провайдерами в отличие от 587
-  secure: true,    // прямой TLS
-  requireTLS: true,
-  family: 4,       // принудительно IPv4
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
