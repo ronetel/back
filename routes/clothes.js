@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const auth = require('../middleware/auth_mw')
+const validateId = require('../middleware/validate_id')
 const pool = require('../db')
 
 
@@ -78,7 +79,7 @@ router.get('/', async (req, res) => {
 
 
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', validateId, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c.*, u.username as owner_username
@@ -242,7 +243,7 @@ router.post('/', auth, async (req, res) => {
 
 
 
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, validateId, async (req, res) => {
   try {
     const clothId = req.params.id
     const userId = req.user.id
@@ -329,7 +330,7 @@ router.put('/:id', auth, async (req, res) => {
 
 
 
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, validateId, async (req, res) => {
   try {
     const clothId = req.params.id
     const userId = req.user.id

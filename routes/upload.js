@@ -3,7 +3,21 @@ const router = express.Router();
 const cloudinary = require("cloudinary").v2;
 const dotenv = require("dotenv");
 const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Разрешены только изображения (JPEG, PNG, WebP, GIF)'), false)
+    }
+  },
+})
 const pool = require("../db");
 const auth = require("../middleware/auth_mw");
 const { removeBackground } = require("@imgly/background-removal-node");

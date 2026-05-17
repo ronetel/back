@@ -1,14 +1,63 @@
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
 const dotenv = require('dotenv')
 const { Pool } = require('pg')
 
 dotenv.config()
 
 const app = express()
-app.use(cors())
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+
+// Security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}))
+
+// CORS — разрешаем только мобильный клиент и localhost для разработки
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:8000',
+      'http://localhost:3000',
+      'https://back-200y.onrender.com',
+    ]
+    // Мобильное приложение не имеет origin (null) — разрешаем
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true,
+}))
+
+// Rate limiting — глобально: 200 запросов / 15 мин с одного IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Слишком много запросов, подождите немного' },
+})
+
+// Строгий лимит для auth эндпоинтов: 10 попыток / 15 мин
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Слишком много попыток, попробуйте через 15 минут' },
+})
+
+app.use(globalLimiter)
+app.use('/auth/login', authLimiter)
+app.use('/auth/register', authLimiter)
+app.use('/auth/forgot-password', authLimiter)
+
+app.use(express.json({ limit: '25mb' }))
+app.use(express.urlencoded({ extended: true, limit: '25mb' }))
 
 const port = process.env.PORT || 8000
 

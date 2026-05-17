@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth_mw");
+const validateId = require("../middleware/validate_id");
 const pool = require("../db");
 
 
@@ -168,7 +169,7 @@ router.get("/user/:userId", async (req, res) => {
 
 
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", validateId, async (req, res) => {
   try {
     const postId = req.params.id;
 
@@ -277,7 +278,7 @@ router.post("/", auth, async (req, res) => {
 
 
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -339,7 +340,7 @@ router.put("/:id", auth, async (req, res) => {
 
 
 
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -371,7 +372,7 @@ router.delete("/:id", auth, async (req, res) => {
 
 
 
-router.post("/:id/like", auth, async (req, res) => {
+router.post("/:id/like", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -405,7 +406,7 @@ router.post("/:id/like", auth, async (req, res) => {
 
 
 
-router.delete("/:id/like", auth, async (req, res) => {
+router.delete("/:id/like", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -429,7 +430,7 @@ router.delete("/:id/like", auth, async (req, res) => {
 
 
 
-router.get("/:id/likes", async (req, res) => {
+router.get("/:id/likes", validateId, async (req, res) => {
   try {
     const postId = req.params.id;
 
@@ -451,7 +452,7 @@ router.get("/:id/likes", async (req, res) => {
 
 
 
-router.get("/:id/like/status", auth, async (req, res) => {
+router.get("/:id/like/status", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -470,7 +471,7 @@ router.get("/:id/like/status", auth, async (req, res) => {
 
 
 
-router.post("/:id/comments", auth, async (req, res) => {
+router.post("/:id/comments", auth, validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -514,7 +515,7 @@ router.post("/:id/comments", auth, async (req, res) => {
 
 
 
-router.get("/:id/comments", async (req, res) => {
+router.get("/:id/comments", validateId, async (req, res) => {
   try {
     const postId = req.params.id;
     const { page = 1, limit = 50 } = req.query;
@@ -571,7 +572,7 @@ router.delete("/:postId/comments/:commentId", auth, async (req, res) => {
 
 
 
-router.put("/:id/hide", auth, async (req, res) => {
+router.put("/:id/hide", auth, validateId, async (req, res) => {
   try {
     if (!["moderator", "admin"].includes(req.user.role)) {
       return res.status(403).json({ message: "Not authorized" });
