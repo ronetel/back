@@ -1,30 +1,52 @@
 const nodemailer = require('nodemailer')
-const dns = require('dns')
+const dns = require('dns').promises
 require('dotenv').config()
 
-// Принудительно IPv4 — без этого Node.js выбирает IPv6 для smtp.gmail.com
-// что блокируется на Render и других cloud-провайдерах
-dns.setDefaultResultOrder('ipv4first')
+// Транспортер создаётся лениво с явным резолвингом IPv4
+// Без этого Node.js выбирает IPv6 адрес smtp.gmail.com который блокируется на Render
+let _transporter = null
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: true,
-    minVersion: 'TLSv1.2',
-  },
-})
+async function getTransporter() {
+  if (_transporter) return _transporter
+
+  const smtpHostname = process.env.SMTP_HOST || 'smtp.gmail.com'
+  let resolvedHost = smtpHostname
+
+  try {
+    const addresses = await dns.resolve4(smtpHostname)
+    if (addresses.length > 0) {
+      resolvedHost = addresses[0]
+      console.log(`SMTP: ${smtpHostname} → ${resolvedHost} (IPv4)`)
+    }
+  } catch (e) {
+    console.warn('SMTP: не удалось резолвить IPv4, используем hostname:', e.message)
+  }
+
+  _transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      // Указываем оригинальный hostname для проверки TLS сертификата
+      servername: smtpHostname,
+      rejectUnauthorized: true,
+      minVersion: 'TLSv1.2',
+    },
+  })
+
+  return _transporter
+}
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
 async function sendVerificationEmail(email, code) {
+  const transporter = await getTransporter()
   await transporter.sendMail({
     from: `"Wardrobe" <${process.env.SMTP_USER}>`,
     to: email,
@@ -43,6 +65,7 @@ async function sendVerificationEmail(email, code) {
 }
 
 async function sendPasswordResetEmail(email, code) {
+  const transporter = await getTransporter()
   await transporter.sendMail({
     from: `"Wardrobe" <${process.env.SMTP_USER}>`,
     to: email,

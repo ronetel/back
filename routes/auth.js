@@ -63,9 +63,10 @@ router.post("/register", async (req, res) => {
     }
 
     // Проверяем username в pending (другой человек мог занять ник)
+    // Проверяем ник только у ДРУГИХ пользователей — тот же email может перерегистрироваться
     const pendingUsername = await pool.query(
-      "SELECT 1 FROM pending_registrations WHERE username=$1 AND expires_at > NOW()",
-      [username]
+      "SELECT 1 FROM pending_registrations WHERE username=$1 AND email!=$2 AND expires_at > NOW()",
+      [username, email]
     );
     if (pendingUsername.rows.length > 0) {
       return res.status(409).json({ message: "Username already exists" });
