@@ -38,65 +38,60 @@ router.post("/register", async (req, res) => {
   const { email, username, password } = req.body;
 
   if (!email || !username || !password) {
-    return res
-      .status(400)
-      .json({ message: "Email, username and password required" });
+    return res.status(400).json({ message: "Email, username and password required" });
   }
 
-  
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({ message: "Invalid email format" });
   }
 
-  
   const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
   if (!usernameRegex.test(username)) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Username must be 3-30 characters, alphanumeric and underscores only",
-      });
+    return res.status(400).json({ message: "Username must be 3-30 characters, alphanumeric and underscores only" });
   }
 
   try {
-    // Проверяем что email/username не заняты
+    // Проверяем что email/username не заняты в реальных аккаунтах
     const existing = await pool.query(
-      "SELECT id FROM users WHERE email = $1 OR username = $2",
+      "SELECT email, username FROM users WHERE email=$1 OR username=$2",
       [email, username]
     );
     if (existing.rows.length > 0) {
-      const taken = await pool.query("SELECT email, username FROM users WHERE email=$1 OR username=$2", [email, username]);
-      if (taken.rows[0].email === email) return res.status(409).json({ message: "Email already exists" });
+      if (existing.rows[0].email === email) return res.status(409).json({ message: "Email already exists" });
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-    await pool.query(
-      `INSERT INTO users(email, username, password_hash, role, is_email_verified)
-       VALUES ($1,$2,$3,'user',FALSE)
-       ON CONFLICT DO NOTHING`,
-      [email, username, hashedPassword],
+    // Проверяем username в pending (другой человек мог занять ник)
+    const pendingUsername = await pool.query(
+      "SELECT 1 FROM pending_registrations WHERE username=$1 AND expires_at > NOW()",
+      [username]
     );
+    if (pendingUsername.rows.length > 0) {
+      return res.status(409).json({ message: "Username already exists" });
+    }
 
-    // Инвалидируем старые коды и создаём новый
-    await pool.query("UPDATE email_codes SET used=TRUE WHERE email=$1 AND type='verification'", [email]);
+    // Rate limit: не чаще раза в минуту
+    const recent = await pool.query(
+      "SELECT 1 FROM pending_registrations WHERE email=$1 AND created_at > NOW() - INTERVAL '1 minute' LIMIT 1",
+      [email]
+    );
+    if (recent.rows.length > 0) return res.status(429).json({ message: "Подождите минуту перед повторной отправкой" });
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const code = generateCode();
+
+    // Удаляем старые pending записи для этого email и создаём новую
+    await pool.query("DELETE FROM pending_registrations WHERE email=$1", [email]);
     await pool.query(
-      "INSERT INTO email_codes(email, code, type, expires_at) VALUES ($1,$2,'verification', NOW() + INTERVAL '15 minutes')",
-      [email, code]
+      "INSERT INTO pending_registrations(email, username, password_hash, code, expires_at) VALUES ($1,$2,$3,$4, NOW() + INTERVAL '15 minutes')",
+      [email, username, hashedPassword, code]
     );
 
     res.status(201).json({ message: "Verification code sent", email });
     sendVerificationEmail(email, code).catch(err => console.error("Mail send error:", err.message));
   } catch (err) {
-    console.error("Registration error:", err);
-    if (err.code === "23505") {
-      if (err.constraint?.includes("email")) return res.status(409).json({ message: "Email already exists" });
-      if (err.constraint?.includes("username")) return res.status(409).json({ message: "Username already exists" });
-    }
+    console.error("Registration error:", err.message, err.code);
     res.status(500).json({ message: "Internal error" });
   }
 });
@@ -732,26 +727,41 @@ router.post("/verify-email", async (req, res) => {
   if (!email || !code) return res.status(400).json({ message: "Email and code required" });
 
   try {
-    const codeResult = await pool.query(
-      `SELECT * FROM email_codes
-       WHERE email=$1 AND code=$2 AND type='verification' AND used=FALSE AND expires_at > NOW()
-       ORDER BY created_at DESC LIMIT 1`,
+    // Ищем pending регистрацию с правильным кодом
+    const pending = await pool.query(
+      "SELECT * FROM pending_registrations WHERE email=$1 AND code=$2 AND expires_at > NOW() LIMIT 1",
       [email, code]
     );
 
-    if (codeResult.rows.length === 0) {
+    if (pending.rows.length === 0) {
       return res.status(400).json({ message: "Неверный или устаревший код" });
     }
 
-    await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [codeResult.rows[0].id]);
-    await pool.query("UPDATE users SET is_email_verified=TRUE WHERE email=$1", [email]);
+    const { username, password_hash } = pending.rows[0];
 
-    const userResult = await pool.query(
-      "SELECT id, email, username, role, avatar_url, created_at FROM users WHERE email=$1",
-      [email]
+    // Финальная проверка — вдруг за это время кто-то занял email/username
+    const conflict = await pool.query(
+      "SELECT email, username FROM users WHERE email=$1 OR username=$2",
+      [email, username]
     );
-    const user = userResult.rows[0];
+    if (conflict.rows.length > 0) {
+      await pool.query("DELETE FROM pending_registrations WHERE email=$1", [email]);
+      if (conflict.rows[0].email === email) return res.status(409).json({ message: "Email already exists" });
+      return res.status(409).json({ message: "Username already exists" });
+    }
 
+    // Создаём аккаунт только сейчас
+    const userResult = await pool.query(
+      `INSERT INTO users(email, username, password_hash, role, is_email_verified)
+       VALUES ($1,$2,$3,'user',TRUE)
+       RETURNING id, email, username, role, avatar_url, created_at`,
+      [email, username, password_hash]
+    );
+
+    // Удаляем pending запись
+    await pool.query("DELETE FROM pending_registrations WHERE email=$1", [email]);
+
+    const user = userResult.rows[0];
     const token = jwt.sign(
       { id: user.id, email: user.email, username: user.username, role: user.role },
       JWT_SECRET,
@@ -773,7 +783,7 @@ router.post("/verify-email", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Verify email error:", err);
+    console.error("Verify email error:", err.message, err.code);
     res.status(500).json({ message: "Internal error" });
   }
 });
@@ -787,30 +797,29 @@ router.post("/resend-verification", async (req, res) => {
   if (!email) return res.status(400).json({ message: "Email required" });
 
   try {
-    const userResult = await pool.query(
-      "SELECT id, is_email_verified FROM users WHERE email=$1",
+    // Проверяем что pending запись существует
+    const pending = await pool.query(
+      "SELECT 1 FROM pending_registrations WHERE email=$1 LIMIT 1",
       [email]
     );
-    if (userResult.rows.length === 0) return res.status(404).json({ message: "User not found" });
-    if (userResult.rows[0].is_email_verified) return res.status(400).json({ message: "Email already verified" });
+    if (pending.rows.length === 0) return res.status(404).json({ message: "Регистрация не найдена. Начните заново." });
 
     // Rate limit: не чаще раза в минуту
     const recent = await pool.query(
-      "SELECT 1 FROM email_codes WHERE email=$1 AND type='verification' AND created_at > NOW() - INTERVAL '1 minute' LIMIT 1",
+      "SELECT 1 FROM pending_registrations WHERE email=$1 AND created_at > NOW() - INTERVAL '1 minute' LIMIT 1",
       [email]
     );
     if (recent.rows.length > 0) return res.status(429).json({ message: "Подождите минуту перед повторной отправкой" });
 
-    await pool.query("UPDATE email_codes SET used=TRUE WHERE email=$1 AND type='verification'", [email]);
     const code = generateCode();
     await pool.query(
-      "INSERT INTO email_codes(email, code, type, expires_at) VALUES ($1,$2,'verification', NOW() + INTERVAL '15 minutes')",
-      [email, code]
+      "UPDATE pending_registrations SET code=$1, expires_at=NOW() + INTERVAL '15 minutes', created_at=NOW() WHERE email=$2",
+      [code, email]
     );
     res.json({ message: "Code resent" });
     sendVerificationEmail(email, code).catch(err => console.error("Resend mail error:", err.message));
   } catch (err) {
-    console.error("Resend error:", err);
+    console.error("Resend error:", err.message);
     res.status(500).json({ message: "Internal error" });
   }
 });

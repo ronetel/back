@@ -9,6 +9,9 @@ dotenv.config()
 
 const app = express()
 
+// Render и другие облачные платформы работают за прокси
+app.set('trust proxy', 1)
+
 // Security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
