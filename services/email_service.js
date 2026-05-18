@@ -1,14 +1,22 @@
-const { Resend } = require('resend')
+const nodemailer = require('nodemailer')
 require('dotenv').config()
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const transporter = nodemailer.createTransport({
+  host: 'smtp.mail.ru',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
 async function sendMail(to, subject, html) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: `Wardrobe <${process.env.SMTP_USER}>`,
     to,
     subject,

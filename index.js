@@ -127,16 +127,20 @@ async function runMigrations() {
   }
 }
 
-app.listen(port, async () => {
-  console.log(`Wardrobe backend listening on port ${port}`)
-  console.log(`Database URL: ${process.env.DATABASE_URL ? 'configured' : 'NOT SET'}`)
-  console.log(`Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME ? 'configured' : 'NOT SET'}`)
-  console.log(`OpenWeather API: ${process.env.OPENWEATHER_API_KEY ? 'configured' : 'NOT SET'}`)
-  console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT SET'}`)
-  console.log(`Groq API: ${process.env.GROQ_API_KEY ? 'configured' : 'NOT SET (rule-based fallback will be used)'}`)
-  console.log(`SMTP: ${process.env.SMTP_USER ? `configured (${process.env.SMTP_USER})` : 'NOT SET — emails will not be sent!'}`)
-  await runMigrations()
-})
+if (process.env.NODE_ENV !== 'production' || process.env.RENDER) {
+  app.listen(port, async () => {
+    console.log(`Wardrobe backend listening on port ${port}`)
+    console.log(`Database URL: ${process.env.DATABASE_URL ? 'configured' : 'NOT SET'}`)
+    console.log(`Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME ? 'configured' : 'NOT SET'}`)
+    console.log(`OpenWeather API: ${process.env.OPENWEATHER_API_KEY ? 'configured' : 'NOT SET'}`)
+    console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT SET'}`)
+    console.log(`Groq API: ${process.env.GROQ_API_KEY ? 'configured' : 'NOT SET (rule-based fallback will be used)'}`)
+    console.log(`SMTP: ${process.env.SMTP_USER ? `configured (${process.env.SMTP_USER})` : 'NOT SET — emails will not be sent!'}`)
+    await runMigrations()
+  })
+}
+
+module.exports = app
 
 
 process.on('SIGTERM', () => {
