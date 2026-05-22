@@ -5,11 +5,7 @@ require('dotenv').config()
 const smtpPass = (process.env.SMTP_PASS || '').replace(/\s/g, '')
 
 const transporter = nodemailer.createTransport({
-<<<<<<< HEAD
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-=======
-  host: process.env.SMTP_HOST,
->>>>>>> 4e50eeb169d33fdd36eaa94b24a3cb5e0c7a21a5
   port: Number(process.env.SMTP_PORT) || 587,
   secure: process.env.SMTP_SECURE === 'true',
   family: 4,
