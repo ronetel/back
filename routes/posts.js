@@ -26,7 +26,7 @@ router.get("/feed", async (req, res) => {
     }
 
     
-    // Строим параметры отдельно для count и основного запроса
+    
     const countParams = []
     const mainParams = [limit, offset]
     let followingCondition = ''
@@ -43,7 +43,7 @@ router.get("/feed", async (req, res) => {
     )
     const totalCount = parseInt(countResult.rows[0].count)
 
-    // Для основного запроса строим условие заново с правильными индексами
+    
     let mainFollowingCondition = ''
     if (feed === 'following' && currentUserId) {
       mainParams.push(currentUserId)

@@ -7,7 +7,6 @@ require('dotenv').config()
 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY
 
-// OpenWeather condition → internal tag mapping
 const OW_CONDITION_MAP = {
   Clear: 'sunny',
   Clouds: 'cloudy',
@@ -24,9 +23,6 @@ const OW_CONDITION_MAP = {
   Squall: 'windy',
   Tornado: 'windy',
 }
-
-
-
 
 router.get('/current', async (req, res) => {
   try {
@@ -65,9 +61,6 @@ router.get('/current', async (req, res) => {
   }
 })
 
-
-
-
 router.get('/city/:city', async (req, res) => {
   try {
     const city = req.params.city
@@ -89,9 +82,6 @@ router.get('/city/:city', async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch weather data' })
   }
 })
-
-
-
 
 router.get('/forecast', async (req, res) => {
   try {
@@ -116,15 +106,12 @@ router.get('/forecast', async (req, res) => {
   }
 })
 
-
-
-
 router.get('/recommend', auth, async (req, res) => {
   try {
     const { lat, lon } = req.query
     const userId = req.user.id
 
-    // Получаем погоду
+    
     let weatherData = null
     let temp = 20
     let weatherCondition = 'Clear'
@@ -146,7 +133,7 @@ router.get('/recommend', auth, async (req, res) => {
     const windSpeed = weatherData?.wind?.speed || 0
     const isWindy = windSpeed > 10
 
-    // 1. Образы с ai_tags — фильтрация по температуре + погодным условиям
+    
     const aiResult = await pool.query(
       `SELECT o.*,
         CASE
@@ -163,7 +150,7 @@ router.get('/recommend', auth, async (req, res) => {
       [userId, temp, conditionTag]
     )
 
-    // 2. Fallback — образы без ai_tags, по сезону/event
+    
     let fallbackOutfits = []
     if (aiResult.rows.length < 3) {
       const season = getSeasonFromTemp(temp)
@@ -181,7 +168,7 @@ router.get('/recommend', auth, async (req, res) => {
 
     const allOutfits = [...aiResult.rows, ...fallbackOutfits]
 
-    // Загружаем clothes для каждого образа
+    
     const outfitsWithClothes = await Promise.all(
       allOutfits.map(async (outfit) => {
         if (outfit.clothes_ids && outfit.clothes_ids.length > 0) {
@@ -218,9 +205,6 @@ router.get('/recommend', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.post('/analyze-all', auth, async (req, res) => {
   const { analyzeOutfitImage } = require('../services/gemini_service')
   const userId = req.user.id
@@ -236,7 +220,7 @@ router.post('/analyze-all', auth, async (req, res) => {
 
     res.json({ queued: result.rows.length, message: 'Analysis started in background' })
 
-    // Асинхронно анализируем все образы с задержкой 2с между запросами
+    
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
     for (const outfit of result.rows) {
       try {
@@ -258,9 +242,6 @@ router.post('/analyze-all', auth, async (req, res) => {
     console.error('Analyze-all error:', err)
   }
 })
-
-
-
 
 function getSeasonFromTemp(temp) {
   if (temp < 5) return 'winter'

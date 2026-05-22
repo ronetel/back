@@ -52,7 +52,7 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // Проверяем что email/username не заняты в реальных аккаунтах
+    
     const existing = await pool.query(
       "SELECT email, username FROM users WHERE email=$1 OR username=$2",
       [email, username]
@@ -62,8 +62,8 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    // Проверяем username в pending (другой человек мог занять ник)
-    // Проверяем ник только у ДРУГИХ пользователей — тот же email может перерегистрироваться
+    
+    
     const pendingUsername = await pool.query(
       "SELECT 1 FROM pending_registrations WHERE username=$1 AND email!=$2 AND expires_at > NOW()",
       [username, email]
@@ -72,7 +72,7 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    // Rate limit: не чаще раза в минуту
+    
     const recent = await pool.query(
       "SELECT 1 FROM pending_registrations WHERE email=$1 AND created_at > NOW() - INTERVAL '1 minute' LIMIT 1",
       [email]
@@ -82,7 +82,7 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const code = generateCode();
 
-    // Удаляем старые pending записи для этого email и создаём новую
+    
     await pool.query("DELETE FROM pending_registrations WHERE email=$1", [email]);
     await pool.query(
       "INSERT INTO pending_registrations(email, username, password_hash, code, expires_at) VALUES ($1,$2,$3,$4, NOW() + INTERVAL '15 minutes')",
@@ -265,7 +265,7 @@ router.put("/profile", async (req, res) => {
 
 
 
-// Step 1: validate current password → send email code
+
 router.post("/password-change-code", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token" });
@@ -311,7 +311,7 @@ router.post("/password-change-code", async (req, res) => {
   }
 });
 
-// Step 2: verify code + change password
+
 router.put("/password", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token" });
@@ -734,13 +734,13 @@ router.delete("/users/:id", requireRole(["admin"]), async (req, res) => {
   }
 });
 
-// POST /auth/verify-email
+
 router.post("/verify-email", async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ message: "Email and code required" });
 
   try {
-    // Ищем pending регистрацию с правильным кодом
+    
     const pending = await pool.query(
       "SELECT * FROM pending_registrations WHERE email=$1 AND code=$2 AND expires_at > NOW() LIMIT 1",
       [email, code]
@@ -752,7 +752,7 @@ router.post("/verify-email", async (req, res) => {
 
     const { username, password_hash } = pending.rows[0];
 
-    // Финальная проверка — вдруг за это время кто-то занял email/username
+    
     const conflict = await pool.query(
       "SELECT email, username FROM users WHERE email=$1 OR username=$2",
       [email, username]
@@ -763,7 +763,7 @@ router.post("/verify-email", async (req, res) => {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    // Создаём аккаунт только сейчас
+    
     const userResult = await pool.query(
       `INSERT INTO users(email, username, password_hash, role, is_email_verified)
        VALUES ($1,$2,$3,'user',TRUE)
@@ -771,7 +771,7 @@ router.post("/verify-email", async (req, res) => {
       [email, username, password_hash]
     );
 
-    // Удаляем pending запись
+    
     await pool.query("DELETE FROM pending_registrations WHERE email=$1", [email]);
 
     const user = userResult.rows[0];
@@ -804,20 +804,20 @@ router.post("/verify-email", async (req, res) => {
 
 
 
-// POST /auth/resend-verification
+
 router.post("/resend-verification", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Email required" });
 
   try {
-    // Проверяем что pending запись существует
+    
     const pending = await pool.query(
       "SELECT 1 FROM pending_registrations WHERE email=$1 LIMIT 1",
       [email]
     );
     if (pending.rows.length === 0) return res.status(404).json({ message: "Регистрация не найдена. Начните заново." });
 
-    // Rate limit: не чаще раза в минуту
+    
     const recent = await pool.query(
       "SELECT 1 FROM pending_registrations WHERE email=$1 AND created_at > NOW() - INTERVAL '1 minute' LIMIT 1",
       [email]
@@ -840,14 +840,14 @@ router.post("/resend-verification", async (req, res) => {
 
 
 
-// POST /auth/forgot-password
+
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Email required" });
 
   try {
     const userResult = await pool.query("SELECT id FROM users WHERE email=$1", [email]);
-    // Не сообщаем найден ли пользователь — защита от перебора
+    
     if (userResult.rows.length === 0) return res.json({ message: "If this email is registered, a code has been sent" });
 
     const recent = await pool.query(
@@ -874,14 +874,14 @@ router.post("/forgot-password", async (req, res) => {
 
 
 
-// POST /auth/reset-password
+
 router.post("/reset-password", async (req, res) => {
   const { email, code, newPassword } = req.body;
   if (!email || !code || !newPassword) return res.status(400).json({ message: "All fields required" });
   if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
 
   try {
-    // Находим активный код (не используем значение code ещё)
+    
     const activeCode = await pool.query(
       `SELECT * FROM email_codes
        WHERE email=$1 AND type='password_reset' AND used=FALSE AND expires_at > NOW()
@@ -893,7 +893,7 @@ router.post("/reset-password", async (req, res) => {
 
     const row = activeCode.rows[0];
 
-    // Блокируем после 5 неудачных попыток
+    
     if (row.attempts >= 5) {
       await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [row.id]);
       return res.status(400).json({ message: "Слишком много попыток. Запросите новый код." });

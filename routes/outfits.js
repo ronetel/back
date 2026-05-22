@@ -17,9 +17,6 @@ async function triggerAnalysis(outfitId, thumbnailUrl, meta = {}) {
   }
 }
 
-
-
-
 router.get('/', auth, async (req, res) => {
   try {
     const { event, season, is_favorite } = req.query
@@ -88,9 +85,6 @@ router.get('/', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.get('/:id', auth, validateId, async (req, res) => {
   try {
     const outfitId = req.params.id
@@ -131,9 +125,6 @@ router.get('/:id', auth, validateId, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.post('/', auth, async (req, res) => {
   try {
@@ -177,16 +168,13 @@ router.post('/', auth, async (req, res) => {
 
     res.status(201).json({ outfit })
 
-    // async AI analysis — не блокирует ответ
+    
     triggerAnalysis(outfit.id, thumbnail_url, { event, season, description })
   } catch (err) {
     console.error('Create outfit error:', err)
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.put('/:id', auth, validateId, async (req, res) => {
   try {
@@ -284,7 +272,7 @@ router.put('/:id', auth, validateId, async (req, res) => {
 
     res.json({ outfit })
 
-    // повторный анализ если thumbnail изменился
+    
     if (thumbnail_url) {
       triggerAnalysis(outfit.id, thumbnail_url, {
         event: outfit.event,
@@ -297,9 +285,6 @@ router.put('/:id', auth, validateId, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.post('/:id/analyze', auth, async (req, res) => {
   try {
@@ -340,9 +325,6 @@ router.post('/:id/analyze', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.delete('/:id', auth, validateId, async (req, res) => {
   try {
     const outfitId = req.params.id
@@ -363,9 +345,6 @@ router.delete('/:id', auth, validateId, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.post('/generate', auth, async (req, res) => {
   try {
@@ -433,9 +412,6 @@ router.post('/generate', auth, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.get('/date/:date', auth, async (req, res) => {
   try {

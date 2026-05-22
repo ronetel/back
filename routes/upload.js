@@ -5,7 +5,7 @@ const dotenv = require("dotenv");
 const multer = require("multer");
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
+const MAX_FILE_SIZE = 25 * 1024 * 1024 
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,16 +20,38 @@ const upload = multer({
 })
 const pool = require("../db");
 const auth = require("../middleware/auth_mw");
-const { removeBackground } = require("@imgly/background-removal-node");
+const axios = require("axios");
 
 async function removeBg(imageBuffer) {
+  if (process.env.REMOVE_BG_API_KEY) {
+    try {
+      const response = await axios.post(
+        "https://api.remove.bg/v1.0/removebg",
+        { image_file_b64: imageBuffer.toString("base64"), size: "auto" },
+        {
+          headers: {
+            "X-Api-Key": process.env.REMOVE_BG_API_KEY,
+            "Content-Type": "application/json",
+          },
+          responseType: "arraybuffer",
+          timeout: 30000,
+        }
+      );
+      return Buffer.from(response.data);
+    } catch (err) {
+      console.warn("remove.bg API failed:", err.response?.data?.toString() || err.message);
+      return null;
+    }
+  }
+
   try {
+    const { removeBackground } = require("@imgly/background-removal-node");
     const blob = new Blob([imageBuffer], { type: "image/jpeg" });
     const result = await removeBackground(blob);
     const arrayBuffer = await result.arrayBuffer();
     return Buffer.from(arrayBuffer);
   } catch (err) {
-    console.warn("Background removal failed:", err.message);
+    console.warn("Local background removal failed:", err.message);
     return null;
   }
 }

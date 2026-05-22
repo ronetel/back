@@ -1,6 +1,5 @@
 const pool = require('../db')
 
-
 async function logAction({ action, actorId, actorUsername, targetType, targetId, targetName, details }) {
   try {
     await pool.query(

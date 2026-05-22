@@ -4,9 +4,6 @@ const auth = require('../middleware/auth_mw')
 const validateId = require('../middleware/validate_id')
 const pool = require('../db')
 
-
-
-
 router.get('/', async (req, res) => {
   try {
     const { type, event, color, material, season, owner_id } = req.query
@@ -76,9 +73,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-
-
-
 router.get('/:id', validateId, async (req, res) => {
   try {
     const result = await pool.query(
@@ -98,9 +92,6 @@ router.get('/:id', validateId, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.get('/user/me', auth, async (req, res) => {
   try {
@@ -166,9 +157,6 @@ router.get('/user/me', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.get('/type/:type/event/:event', async (req, res) => {
   try {
     const { type, event } = req.params
@@ -201,9 +189,6 @@ router.get('/type/:type/event/:event', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.post('/', auth, async (req, res) => {
   try {
@@ -239,9 +224,6 @@ router.post('/', auth, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.put('/:id', auth, validateId, async (req, res) => {
   try {
@@ -327,9 +309,6 @@ router.put('/:id', auth, validateId, async (req, res) => {
   }
 })
 
-
-
-
 router.delete('/:id', auth, validateId, async (req, res) => {
   try {
     const clothId = req.params.id
@@ -352,9 +331,6 @@ router.delete('/:id', auth, validateId, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
-
-
-
 
 router.get('/stats/me', auth, async (req, res) => {
   try {

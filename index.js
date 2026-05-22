@@ -9,20 +9,20 @@ dotenv.config()
 
 const app = express()
 
-// Render и другие облачные платформы работают за прокси
+
 app.set('trust proxy', 1)
 
-// Security headers
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }))
 
-// CORS — мобильное приложение и все localhost (Flutter web dev server)
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Мобильное приложение не имеет origin (null) — разрешаем
+    
     if (!origin) return callback(null, true)
-    // Любой localhost (Flutter web запускается на случайном порту)
+    
     if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true)
     }
@@ -31,7 +31,7 @@ app.use(cors({
   credentials: true,
 }))
 
-// Rate limiting — глобально: 200 запросов / 15 мин с одного IP
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -40,7 +40,7 @@ const globalLimiter = rateLimit({
   message: { message: 'Слишком много запросов, подождите немного' },
 })
 
-// Строгий лимит для auth эндпоинтов: 10 попыток / 15 мин
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

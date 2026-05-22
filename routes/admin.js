@@ -7,9 +7,6 @@ const { logAction } = require('../helpers/logger')
 const isMod = (role) => ['moderator', 'admin'].includes(role)
 const isAdmin = (role) => role === 'admin'
 
-
-
-
 router.get('/posts', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -47,9 +44,6 @@ router.get('/posts', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.put('/posts/:id/hide', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -75,9 +69,6 @@ router.put('/posts/:id/hide', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.put('/posts/:id/content', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -101,9 +92,6 @@ router.put('/posts/:id/content', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.delete('/posts/:id', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -124,9 +112,6 @@ router.delete('/posts/:id', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.get('/comments', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
@@ -160,9 +145,6 @@ router.get('/comments', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.put('/comments/:id/hide', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -185,9 +167,6 @@ router.put('/comments/:id/hide', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.put('/comments/:id/content', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
@@ -212,9 +191,6 @@ router.put('/comments/:id/content', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.delete('/comments/:id', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -235,9 +211,6 @@ router.delete('/comments/:id', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.get('/users', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
@@ -275,9 +248,6 @@ router.get('/users', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.post('/users/:id/ban', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
@@ -320,9 +290,6 @@ router.post('/users/:id/ban', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.post('/users/:id/unban', auth, async (req, res) => {
   if (!isMod(req.user.role)) return res.status(403).json({ message: 'Недостаточно прав' })
   try {
@@ -350,9 +317,6 @@ router.post('/users/:id/unban', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.put('/users/:id/role', auth, async (req, res) => {
   if (!isAdmin(req.user.role)) return res.status(403).json({ message: 'Требуются права администратора' })
@@ -384,9 +348,6 @@ router.put('/users/:id/role', auth, async (req, res) => {
   }
 })
 
-
-
-
 router.delete('/users/:id', auth, async (req, res) => {
   if (!isAdmin(req.user.role)) return res.status(403).json({ message: 'Требуются права администратора' })
   try {
@@ -410,9 +371,6 @@ router.delete('/users/:id', auth, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' })
   }
 })
-
-
-
 
 router.get('/logs', auth, async (req, res) => {
   if (!isAdmin(req.user.role)) return res.status(403).json({ message: 'Требуются права администратора' })

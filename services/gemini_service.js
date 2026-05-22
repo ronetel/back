@@ -1,7 +1,6 @@
 const axios = require('axios')
 require('dotenv').config()
 
-// Groq — бесплатно, работает без VPN, поддерживает анализ изображений
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODELS = [
   'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -101,7 +100,6 @@ async function analyzeOutfitImage(imageUrl, outfitMeta = {}) {
   return buildRuleBasedTags(outfitMeta)
 }
 
-// Fallback без API — из метаданных образа
 function buildRuleBasedTags(meta) {
   const seasonMap = {
     winter:       { temp_min: -25, temp_max: 2,  warmth: 'cold',     weather: ['snowy', 'cloudy'] },

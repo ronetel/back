@@ -2,7 +2,6 @@ const nodemailer = require('nodemailer')
 const axios = require('axios')
 require('dotenv').config()
 
-// Приоритет: Gmail OAuth2 (HTTPS) > Resend (HTTPS) > SMTP (локалка)
 const useGmailOAuth = !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN)
 const useResend = !useGmailOAuth && !!process.env.RESEND_API_KEY
 
@@ -21,7 +20,6 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.SMTP_USER, pass: smtpPass },
 })
 
-// Получаем свежий access token через refresh token
 async function getGmailAccessToken() {
   const res = await axios.post('https://oauth2.googleapis.com/token', {
     client_id: process.env.GMAIL_CLIENT_ID,
@@ -46,7 +44,7 @@ async function sendViaGmailApi(to, subject, html) {
     html,
   ].join('\r\n')
 
-  const raw = Buffer.from(mime).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const raw = Buffer.from(mime).toString('base64').replace(/\+/g, '-').replace(/[/]/g, '_').replace(/=+$/, '')
 
   await axios.post(
     'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
