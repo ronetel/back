@@ -85,17 +85,14 @@ router.post("/uploadImage", auth, upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "File required" });
 
     
-    const [original, noBgBuffer] = await Promise.all([
-      uploadBufferToCloudinary(req.file.buffer, {
-        resource_type: "image",
-        folder: "wardrobe/clothes",
-      }),
-      removeBg(req.file.buffer),
-    ]);
+    const original = await uploadBufferToCloudinary(req.file.buffer, {
+      resource_type: "image",
+      folder: "wardrobe/clothes",
+    });
     const imageUrl = original.secure_url;
 
-    
     let processedImageUrl = null;
+    const noBgBuffer = await removeBg(req.file.buffer);
     if (noBgBuffer) {
       const processed = await uploadBufferToCloudinary(noBgBuffer, {
         resource_type: "image",
@@ -192,18 +189,14 @@ router.post("/processCloth", auth, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "File required" });
 
-    
-    const [original, noBgBuffer] = await Promise.all([
-      uploadBufferToCloudinary(req.file.buffer, {
-        resource_type: "image",
-        folder: "wardrobe/clothes",
-      }),
-      removeBg(req.file.buffer),
-    ]);
+    const original = await uploadBufferToCloudinary(req.file.buffer, {
+      resource_type: "image",
+      folder: "wardrobe/clothes",
+    });
     const imageUrl = original.secure_url;
 
-    
     let processedImageUrl = null;
+    const noBgBuffer = await removeBg(req.file.buffer);
     if (noBgBuffer) {
       const processed = await uploadBufferToCloudinary(noBgBuffer, {
         resource_type: "image",

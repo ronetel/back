@@ -1,15 +1,29 @@
 const nodemailer = require('nodemailer')
 require('dotenv').config()
 
+// Google app passwords отображаются с пробелами ("xxxx xxxx xxxx xxxx") — убираем их
+const smtpPass = (process.env.SMTP_PASS || '').replace(/\s/g, '')
+
 const transporter = nodemailer.createTransport({
-  host: 'smtp.mail.ru',
-  port: 465,
-  secure: true,
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  family: 4,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: smtpPass,
   },
 })
+
+async function verifySmtp() {
+  try {
+    await transporter.verify()
+    console.log(`SMTP OK: connected to ${process.env.SMTP_HOST || 'smtp.gmail.com'} as ${process.env.SMTP_USER}`)
+  } catch (err) {
+    console.error(`SMTP FAILED: ${err.message}`)
+    console.error('Email sending will not work. Check SMTP_USER, SMTP_PASS in .env')
+  }
+}
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -58,4 +72,4 @@ async function sendPasswordResetEmail(email, code) {
   )
 }
 
-module.exports = { generateCode, sendVerificationEmail, sendPasswordResetEmail }
+module.exports = { generateCode, sendVerificationEmail, sendPasswordResetEmail, verifySmtp }

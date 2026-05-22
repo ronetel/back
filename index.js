@@ -17,20 +17,16 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }))
 
-// CORS — разрешаем только мобильный клиент и localhost для разработки
+// CORS — мобильное приложение и все localhost (Flutter web dev server)
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
-      'http://localhost:8000',
-      'http://localhost:3000',
-      'https://back-200y.onrender.com',
-    ]
     // Мобильное приложение не имеет origin (null) — разрешаем
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
+    if (!origin) return callback(null, true)
+    // Любой localhost (Flutter web запускается на случайном порту)
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true)
     }
+    callback(new Error('Not allowed by CORS'))
   },
   credentials: true,
 }))
@@ -58,6 +54,8 @@ app.use(globalLimiter)
 app.use('/auth/login', authLimiter)
 app.use('/auth/register', authLimiter)
 app.use('/auth/forgot-password', authLimiter)
+app.use('/auth/reset-password', authLimiter)
+app.use('/auth/verify-email', authLimiter)
 
 app.use(express.json({ limit: '25mb' }))
 app.use(express.urlencoded({ extended: true, limit: '25mb' }))
@@ -133,10 +131,10 @@ if (process.env.NODE_ENV !== 'production' || process.env.RENDER) {
     console.log(`Database URL: ${process.env.DATABASE_URL ? 'configured' : 'NOT SET'}`)
     console.log(`Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME ? 'configured' : 'NOT SET'}`)
     console.log(`OpenWeather API: ${process.env.OPENWEATHER_API_KEY ? 'configured' : 'NOT SET'}`)
-    console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT SET'}`)
     console.log(`Groq API: ${process.env.GROQ_API_KEY ? 'configured' : 'NOT SET (rule-based fallback will be used)'}`)
-    console.log(`SMTP: ${process.env.SMTP_USER ? `configured (${process.env.SMTP_USER})` : 'NOT SET — emails will not be sent!'}`)
     await runMigrations()
+    const { verifySmtp } = require('./services/email_service')
+    await verifySmtp()
   })
 }
 

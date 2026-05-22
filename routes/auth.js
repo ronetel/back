@@ -285,7 +285,7 @@ router.post("/password-change-code", async (req, res) => {
 
     const user = userResult.rows[0];
     const match = await bcrypt.compare(currentPassword, user.password_hash);
-    if (!match) return res.status(401).json({ message: "Неверный текущий пароль" });
+    if (!match) return res.status(400).json({ message: "Неверный текущий пароль" });
 
     const recent = await pool.query(
       "SELECT id FROM email_codes WHERE email=$1 AND type='password_change' AND created_at > NOW() - INTERVAL '1 minute' AND used=FALSE",
@@ -302,8 +302,9 @@ router.post("/password-change-code", async (req, res) => {
       [user.email, code]
     );
 
+    console.log(`[password-change] code for ${user.email}: ${code}`)
     res.json({ message: "Code sent", email: user.email });
-    sendPasswordResetEmail(user.email, code).catch(err => console.error("Mail error:", err.message));
+    sendPasswordResetEmail(user.email, code).catch(err => console.error(`[password-change] mail error: ${err.message}`));
   } catch (err) {
     console.error("Password change code error:", err);
     res.status(500).json({ message: "Internal error" });
@@ -331,17 +332,28 @@ router.put("/password", async (req, res) => {
 
     const user = userResult.rows[0];
     const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
-    if (!passwordMatch) return res.status(401).json({ message: "Неверный текущий пароль" });
+    if (!passwordMatch) return res.status(400).json({ message: "Неверный текущий пароль" });
 
-    const codeResult = await pool.query(
-      "SELECT id FROM email_codes WHERE email=$1 AND code=$2 AND type='password_change' AND used=FALSE AND expires_at > NOW()",
-      [user.email, code]
+    const activeCode = await pool.query(
+      "SELECT id, code, attempts FROM email_codes WHERE email=$1 AND type='password_change' AND used=FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
+      [user.email]
     );
-    if (!codeResult.rows.length) {
+    if (!activeCode.rows.length) {
       return res.status(400).json({ message: "Неверный или истёкший код" });
     }
 
-    await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [codeResult.rows[0].id]);
+    const codeRow = activeCode.rows[0];
+    if (codeRow.attempts >= 5) {
+      await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [codeRow.id]);
+      return res.status(400).json({ message: "Слишком много попыток. Запросите новый код." });
+    }
+    if (codeRow.code !== code) {
+      await pool.query("UPDATE email_codes SET attempts=attempts+1 WHERE id=$1", [codeRow.id]);
+      const left = 4 - codeRow.attempts;
+      return res.status(400).json({ message: `Неверный код. Осталось попыток: ${left}` });
+    }
+
+    await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [codeRow.id]);
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query("UPDATE users SET password_hash=$1 WHERE id=$2", [hashedPassword, decoded.id]);
 
@@ -869,16 +881,31 @@ router.post("/reset-password", async (req, res) => {
   if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
 
   try {
-    const codeResult = await pool.query(
+    // Находим активный код (не используем значение code ещё)
+    const activeCode = await pool.query(
       `SELECT * FROM email_codes
-       WHERE email=$1 AND code=$2 AND type='password_reset' AND used=FALSE AND expires_at > NOW()
+       WHERE email=$1 AND type='password_reset' AND used=FALSE AND expires_at > NOW()
        ORDER BY created_at DESC LIMIT 1`,
-      [email, code]
+      [email]
     );
 
-    if (codeResult.rows.length === 0) return res.status(400).json({ message: "Неверный или устаревший код" });
+    if (activeCode.rows.length === 0) return res.status(400).json({ message: "Неверный или устаревший код" });
 
-    await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [codeResult.rows[0].id]);
+    const row = activeCode.rows[0];
+
+    // Блокируем после 5 неудачных попыток
+    if (row.attempts >= 5) {
+      await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [row.id]);
+      return res.status(400).json({ message: "Слишком много попыток. Запросите новый код." });
+    }
+
+    if (row.code !== code) {
+      await pool.query("UPDATE email_codes SET attempts=attempts+1 WHERE id=$1", [row.id]);
+      const left = 4 - row.attempts;
+      return res.status(400).json({ message: `Неверный код. Осталось попыток: ${left}` });
+    }
+
+    await pool.query("UPDATE email_codes SET used=TRUE WHERE id=$1", [row.id]);
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query("UPDATE users SET password_hash=$1 WHERE email=$2", [hashedPassword, email]);
 
