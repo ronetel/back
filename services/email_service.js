@@ -1,7 +1,17 @@
 const nodemailer = require('nodemailer')
 require('dotenv').config()
 
-// Google app passwords отображаются с пробелами ("xxxx xxxx xxxx xxxx") — убираем их
+// Если есть RESEND_API_KEY — используем Resend (HTTP, работает на Render)
+// Иначе — nodemailer SMTP (для локальной разработки)
+const useResend = !!process.env.RESEND_API_KEY
+
+let resendClient = null
+if (useResend) {
+  const { Resend } = require('resend')
+  resendClient = new Resend(process.env.RESEND_API_KEY)
+}
+
+// Google app passwords отображаются с пробелами — убираем их
 const smtpPass = (process.env.SMTP_PASS || '').replace(/\s/g, '')
 
 const transporter = nodemailer.createTransport({
@@ -16,6 +26,10 @@ const transporter = nodemailer.createTransport({
 })
 
 async function verifySmtp() {
+  if (useResend) {
+    console.log('Email: using Resend API (HTTPS) — SMTP not needed')
+    return
+  }
   try {
     await transporter.verify()
     console.log(`SMTP OK: connected to ${process.env.SMTP_HOST || 'smtp.gmail.com'} as ${process.env.SMTP_USER}`)
@@ -30,6 +44,12 @@ function generateCode() {
 }
 
 async function sendMail(to, subject, html) {
+  if (useResend) {
+    const from = process.env.RESEND_FROM || 'Wardrobe <onboarding@resend.dev>'
+    const { error } = await resendClient.emails.send({ from, to, subject, html })
+    if (error) throw new Error(error.message)
+    return
+  }
   await transporter.sendMail({
     from: `Wardrobe <${process.env.SMTP_USER}>`,
     to,
